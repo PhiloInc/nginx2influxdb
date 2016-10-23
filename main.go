@@ -2,58 +2,55 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"time"
 )
 
 var (
-	period int
+	interval time.Duration
 	batch  int
-	stream bool
-	dbUrl  string
-	dbName string
+
+	tags map[string]string
+
+	db *Database
 )
 
 func init() {
-	flag.IntVar(&period, "p", 5, "Number of seconds between writes")
-	flag.StringVar(&dbUrl, "h", "", "InfluxDB server url")
+	var dbAddr, dbName, dbPassword, dbUser, tagstr string
+	var secsInt int
+	var err error
+	flag.IntVar(&secsInt, "i", 5, "Number of seconds between writes")
+	flag.StringVar(&dbAddr, "a", "", "InfluxDB server address")
+	flag.StringVar(&dbUser, "u", "", "InfluxDB database user")
+	flag.StringVar(&dbPassword, "p", "", "InfluxDB database password")
 	flag.StringVar(&dbName, "d", "", "InfluxDB database name")
-	flag.BoolVar(&stream, "s", false, "Stream")
+	flag.StringVar(&tagstr, "t", "{}", "tags to pass to influxdb")
 	flag.IntVar(&batch, "b", 1000, "Batch size")
 	flag.Parse()
 
-	if dbUrl == "" {
-		fmt.Println("Server url is not provided")
+	interval = time.Duration(secsInt) * time.Second
+
+	db, err = NewDatabase(dbAddr, dbName, dbPassword, dbName)
+	if err != nil {
+		log.Printf("Could not connect to db: %v\n", err)
 		os.Exit(1)
 	}
 
-	if dbName == "" {
-		fmt.Println("Database name is not provided")
+	err = json.Unmarshal([]byte(tagstr), &tags)
+	if err != nil {
+		log.Printf("Bad tags passed: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func main() {
-	db := NewDatabase(dbUrl, dbName)
+	var now time.Time
 	scanner := bufio.NewScanner(os.Stdin)
-	requests := []Request{}
-
-	// Write to influx db periodically only when streaming is enabled
-	if stream {
-		go func() {
-			for {
-				if len(requests) > 0 {
-					go db.Write(requests)
-					requests = []Request{}
-				}
-
-				time.Sleep(time.Duration(period) * time.Second)
-			}
-		}()
-	}
+	requests := make(Requests, 0, batch)
+	last_push := time.Now()
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -66,23 +63,11 @@ func main() {
 
 		requests = append(requests, req)
 
-		if stream {
-			log.Println(req.InfluxString())
-		}
-	}
-
-	if !stream && len(requests) > 0 {
-		num := len(requests)
-		pages := num / batch
-		offset := 0
-
-		for i := 0; i < pages; i++ {
-			db.Write(requests[offset : offset+batch])
-			offset += batch
-		}
-
-		if offset < num {
-			db.Write(requests[offset:num])
+		now = time.Now()
+		if now.Sub(last_push) >= interval || len(requests) >= batch {
+			db.Write(requests, tags)
+			requests = make(Requests, 0, batch)
+			last_push = now
 		}
 	}
 }
