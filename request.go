@@ -61,13 +61,18 @@ func parseTimestamp(str string, req *Request) error {
 // Produce fields for consumption by influxdb
 func (r *Request) InfluxFields() map[string]interface{} {
 	return map[string]interface{}{
+		"bytes_sent": r.BytesSent,
+		"req_time": r.ReqTime,
+	}
+}
+
+func (r *Request) InfluxTags() map[string]string {
+	return map[string]string{
 		"proto": r.Proto,
 		"method": r.Method,
 		"path": r.Path,
 		"status": r.Status,
 		"agent": r.Agent,
-		"bytes_sent": r.BytesSent,
-		"req_time": r.ReqTime,
 	}
 }
 

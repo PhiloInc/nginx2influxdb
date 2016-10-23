@@ -12,7 +12,7 @@ const (
 
 func createDB(clnt client.Client, name string) {
 	q := client.Query{
-		Command: fmt.Sprintf("CREATE DATABASE %s", name),
+		Command: fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", name),
 	}
 
 	if response, err := clnt.Query(q); err == nil {
@@ -42,7 +42,7 @@ func NewDatabase(addr, username, password, name string) (*Database, error) {
 	return &Database{client, name}, nil
 }
 
-func (db Database) Write(requests Requests, tags map[string]string) error {
+func (db Database) Write(requests Requests) error {
 	bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
 		Database:  db.Name,
 		Precision: "us",
@@ -51,7 +51,7 @@ func (db Database) Write(requests Requests, tags map[string]string) error {
 	for _, r := range requests {
 		pt, _ := client.NewPoint(
 			SERIES_NAME,
-			tags,
+			r.InfluxTags(),
 			r.InfluxFields(),
 			r.Timestamp,
 		)

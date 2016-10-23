@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -19,7 +18,7 @@ var (
 )
 
 func init() {
-	var dbAddr, dbName, dbPassword, dbUser, tagstr string
+	var dbAddr, dbName, dbPassword, dbUser string
 	var secsInt int
 	var err error
 	flag.IntVar(&secsInt, "i", 5, "Number of seconds between writes")
@@ -27,7 +26,6 @@ func init() {
 	flag.StringVar(&dbUser, "u", "", "InfluxDB database user")
 	flag.StringVar(&dbPassword, "p", "", "InfluxDB database password")
 	flag.StringVar(&dbName, "d", "", "InfluxDB database name")
-	flag.StringVar(&tagstr, "t", "{}", "tags to pass to influxdb")
 	flag.IntVar(&batch, "b", 1000, "Batch size")
 	flag.Parse()
 
@@ -36,12 +34,6 @@ func init() {
 	db, err = NewDatabase(dbAddr, dbName, dbPassword, dbName)
 	if err != nil {
 		log.Printf("Could not connect to db: %v\n", err)
-		os.Exit(1)
-	}
-
-	err = json.Unmarshal([]byte(tagstr), &tags)
-	if err != nil {
-		log.Printf("Bad tags passed: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -65,7 +57,7 @@ func main() {
 
 		now = time.Now()
 		if now.Sub(last_push) >= interval || len(requests) >= batch {
-			db.Write(requests, tags)
+			err = db.Write(requests)
 			requests = make(Requests, 0, batch)
 			last_push = now
 		}
