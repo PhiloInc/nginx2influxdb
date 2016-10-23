@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"strconv"
 	"time"
 )
 
@@ -21,8 +22,8 @@ type Request struct {
 	Status    string    // Responses status code (200, 400, etc)
 	Referer   string    // Referer (usually is set to "-")
 	Agent     string    // User agent string
-	BytesSent string    // How many bytes sent?
-	ReqTime   string    // How long did it take to service the request?
+	BytesSent int       // How many bytes sent?
+	ReqTime   float64   // How long did it take to service the request?
 	Timestamp time.Time // Request timestamp (UTC)
 }
 
@@ -78,18 +79,27 @@ func NewRequest(str string) (*Request, error) {
 	}
 	matches := allmatches[0]
 
+	bytes, err := strconv.Atoi(matches[6])
+	if err != nil {
+		return nil, err
+	}
+
+	req_time, err := strconv.ParseFloat(matches[7], 64)
+	if err != nil {
+		return nil, err
+	}
+
 	req := &Request{
 		Ip:      matches[1],
 		Status:  matches[5],
-		BytesSent: matches[6],
-		ReqTime: matches[7],
+		BytesSent: bytes,
+		ReqTime: req_time,
 		Referer: matches[8],
 		Agent:   matches[9],
 	}
 
 	parseTimestamp(matches[3], req)
 	parseRequest(matches[4], req)
-	fmt.Printf("%+v\n", req)
 	fmt.Println(str)
 	return req, nil
 }
