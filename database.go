@@ -17,10 +17,10 @@ func createDB(clnt client.Client, name string) {
 
 	if response, err := clnt.Query(q); err == nil {
 		if response.Error() != nil {
-			log.Fatalf("%v", response.Error())
+			log.Printf("Db creation error: %v", response.Error())
 		}
 	} else {
-		log.Fatal(err)
+		log.Println(err)
 	}
 }
 
