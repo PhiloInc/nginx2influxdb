@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-        "github.com/influxdata/influxdb/client/v2"
+	"github.com/influxdata/influxdb/client/v2"
+	"time"
 )
 
 const (
@@ -34,6 +35,7 @@ func NewDatabase(addr, username, password, name string) (*Database, error) {
 		Addr: addr,
 		Username: username,
 		Password: password,
+		Timeout: time.Duration(100 * time.Millisecond),
 	})
 	if err != nil {
 		return &Database{}, err
